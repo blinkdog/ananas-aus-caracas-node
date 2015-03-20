@@ -1,3 +1,110 @@
+var ROT = require("rot-js");
+
+//do ->
+//  KEYCODE_MAP =
+//    return: 13
+//    space: 32
+//    pageup: 33
+//    pagedown: 34
+//    end: 35
+//    home: 36
+//    left: 37
+//    up: 38
+//    right: 39
+//    down: 40
+//
+//  keypress = require "keypress"
+//  listeners = []
+//
+//  window.addEventListener = (type, listener) ->
+//    if (listener in listeners) is false
+//      listeners.push listener
+//
+//  window.removeEventListener = (type, listener) ->
+//    listeners = (listen for listen in listeners when listen isnt listener)
+//
+//  keypress process.stdin
+//
+//  process.stdin.on "keypress", (ch, key) ->
+//    event =
+//      keyCode: KEYCODE_MAP[key.name]
+//    for listener in listeners
+//      if listener?
+//        if listener.handleEvent?
+//          listener.handleEvent event
+//        else
+//          listener event
+//
+//  process.stdin.setRawMode true
+//
+//  process.stdin.resume()
+  
+var indexOf = [].indexOf || function(item) { for (var i = 0, l = this.length; i < l; i++) { if (i in this && this[i] === item) return i; } return -1; };
+
+(function() {
+  var KEYCODE_MAP, keypress, listeners;
+  KEYCODE_MAP = {
+    "return": 13,
+    space: 32,
+    pageup: 33,
+    pagedown: 34,
+    end: 35,
+    home: 36,
+    left: 37,
+    up: 38,
+    right: 39,
+    down: 40
+  };
+  keypress = require("keypress");
+  listeners = [];
+  window.addEventListener = function(type, listener) {
+    if ((indexOf.call(listeners, listener) >= 0) === false) {
+      return listeners.push(listener);
+    }
+  };
+  window.removeEventListener = function(type, listener) {
+    var listen;
+    return listeners = (function() {
+      var i, len, results;
+      results = [];
+      for (i = 0, len = listeners.length; i < len; i++) {
+        listen = listeners[i];
+        if (listen !== listener) {
+          results.push(listen);
+        }
+      }
+      return results;
+    })();
+  };
+  keypress(process.stdin);
+  process.stdin.on("keypress", function(ch, key) {
+    var event, i, len, listener, results;
+    event = {
+      keyCode: KEYCODE_MAP[key.name]
+    };
+    results = [];
+    for (i = 0, len = listeners.length; i < len; i++) {
+      listener = listeners[i];
+      if (listener != null) {
+        if (listener.handleEvent != null) {
+          results.push(listener.handleEvent(event));
+        } else {
+          results.push(listener(event));
+        }
+      } else {
+        results.push(void 0);
+      }
+    }
+    return results;
+  });
+  process.stdin.setRawMode(true);
+  return process.stdin.resume();
+})();
+
+alert = function(msg) {};
+
+// @see: http://jsfiddle.net/rotjs/qRnFY/
+
 var Game = {
     display: null,
     map: {},
@@ -7,7 +114,8 @@ var Game = {
     ananas: null,
     
     init: function() {
-        this.display = new ROT.Display({spacing:1.1});
+        //this.display = new ROT.Display({spacing:1.1});
+        this.display = new ROT.Display({layout:"term"});
         document.body.appendChild(this.display.getContainer());
         
         this._generateMap();
@@ -130,6 +238,8 @@ Player.prototype._checkBox = function() {
         alert("Hooray! You found an ananas and won this game.");
         Game.engine.lock();
         window.removeEventListener("keydown", this);
+		process.stdout.write("\x1b[25;1H")
+		process.exit(0);
     } else {
         alert("This box is empty :-(");
     }
@@ -162,6 +272,8 @@ Pedro.prototype.act = function() {
     if (path.length == 1) {
         Game.engine.lock();
         alert("Game over - you were captured by Pedro!");
+		process.stdout.write("\x1b[25;1H")
+		process.exit(0);
     } else {
         x = path[0][0];
         y = path[0][1];
@@ -175,6 +287,5 @@ Pedro.prototype.act = function() {
 Pedro.prototype._draw = function() {
     Game.display.draw(this._x, this._y, "P", "red");
 }    
-
 
 Game.init();
