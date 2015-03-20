@@ -42,6 +42,11 @@ var ROT = require("rot-js");
 var indexOf = [].indexOf || function(item) { for (var i = 0, l = this.length; i < l; i++) { if (i in this && this[i] === item) return i; } return -1; };
 
 (function() {
+  process.on("exit", function() {
+	process.stdout.write("\x1b[25;1H"); // move cursor
+	process.stdout.write("\x1b[?25h"); // show cursor
+  });
+  process.stdout.write("\x1b[?25l"); // hide cursor
   var KEYCODE_MAP, keypress, listeners;
   KEYCODE_MAP = {
     "return": 13,
@@ -100,8 +105,6 @@ var indexOf = [].indexOf || function(item) { for (var i = 0, l = this.length; i 
   process.stdin.setRawMode(true);
   return process.stdin.resume();
 })();
-
-alert = function(msg) {};
 
 // @see: http://jsfiddle.net/rotjs/qRnFY/
 
@@ -238,8 +241,7 @@ Player.prototype._checkBox = function() {
         alert("Hooray! You found an ananas and won this game.");
         Game.engine.lock();
         window.removeEventListener("keydown", this);
-		process.stdout.write("\x1b[25;1H")
-		process.exit(0);
+		setTimeout(function() { process.exit(0); }, 1000);
     } else {
         alert("This box is empty :-(");
     }
@@ -269,11 +271,10 @@ Pedro.prototype.act = function() {
     astar.compute(this._x, this._y, pathCallback);
 
     path.shift();
-    if (path.length == 1) {
+    if (path.length <= 1) {
         Game.engine.lock();
         alert("Game over - you were captured by Pedro!");
-		process.stdout.write("\x1b[25;1H")
-		process.exit(0);
+		setTimeout(function() { process.exit(0); }, 1000);
     } else {
         x = path[0][0];
         y = path[0][1];
@@ -287,5 +288,15 @@ Pedro.prototype.act = function() {
 Pedro.prototype._draw = function() {
     Game.display.draw(this._x, this._y, "P", "red");
 }    
+
+alert = function(msg) {
+	Game.display.drawText(0, 1, msg);
+	setTimeout(function() {
+		Game.display.clear();
+		Game._drawWholeMap();
+		Game.pedro._draw();
+		Game.player._draw();
+	}, 1000);
+};
 
 Game.init();
