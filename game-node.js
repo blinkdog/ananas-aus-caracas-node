@@ -1,9 +1,10 @@
 // game-node.js
 // @see: http://jsfiddle.net/rotjs/qRnFY/
+// @see: http://www.roguebasin.com/index.php?title=Rot.js_tutorial
+//
+// This version of the code is intended as a hard port to Node.js.
+// Browser-specific code has been replaced with Node-specific code.
 //---------------------------------------------------------------------
-
-// define a utility function that we'll need later on
-var bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; };
 
 // acquire some libraries we'll need
 var keypress = require("keypress");
@@ -24,7 +25,7 @@ keypress(process.stdin);
 process.stdin.setRawMode(true);
 process.stdin.resume();
 
-// add a handler to list for "quit game" commands
+// add a handler to listen for "quit game" commands
 process.stdin.on("keypress", function(ch, key) {
 	// if the user pressed Ctrl+C or ESC
 	if(ch === "\u0003" || ch === "\u001b" ) {
@@ -33,7 +34,17 @@ process.stdin.on("keypress", function(ch, key) {
 	}
 });
 
+//
 // Ananas aus Caracas
+//
+
+// The tutorial consists of three chapters, which gradually add more
+// and more functionality. The game itself is pretty simple: motivated
+// by this video, a player needs to find an ananas (pineapple) hidden
+// within several boxes in an underground dungeon. It is necessary to
+// find the ananas before Pedro (the ananas owner) finds and punishes
+// you for sneaking into his warehouse. 
+
 var Game = {
     display: null,
     map: {},
@@ -68,12 +79,12 @@ var Game = {
 		// in order to clear the message from the display
 		// and don't forget to bind "this", so we can still
 		// reference it from the timeout context
-		setTimeout(bind(function() {
+		setTimeout((function() {
 			this.display.clear();
 			this._drawWholeMap();
 			this.player._draw();
 			this.pedro._draw();
-		}, this), 1000);
+		}).bind(this), 1000);
 	},
 	
     _generateMap: function() {
@@ -131,7 +142,7 @@ var Player = function(x, y) {
 	// bind the handleEvent function to the Player object, so that
 	// when it is called from process.stdin.on("keypress", ...)
 	// it will always treat the Player as the 'this' object
-    this.handleEvent = bind(this.handleEvent, this);
+    this.handleEvent = this.handleEvent.bind(this);
     this._x = x;
     this._y = y;
     this._draw();
@@ -235,7 +246,7 @@ Pedro.prototype.act = function() {
 	// <=, in case the player jumps into Pedro's arms (path.length === 0)
     if (path.length <= 1) {
         Game.engine.lock();
-        Game.showMessage("Game over - you were captured by Pedro!");
+        Game.showMessage("%c{red}Game over - you were captured by Pedro!");
 		setTimeout(function() { process.exit(0); }, 750);
     } else {
         x = path[0][0];
