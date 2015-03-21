@@ -1,6 +1,8 @@
 # ananas-aus-caracas-node
 Ondřej Žára's rot.js tutorial game Ananas aus Caracas ported to Node.js
 
+![Ananas aus Caracas](/screenshot/warehouse.png?raw=true "Ananas aus Caracas")
+
 ## rot.js Tutorial
 Ondřej Žára wrote a great Roguelike Toolkit library in JavaScript called
 [rot.js](https://ondras.github.io/rot.js/hp/). This library was recently
@@ -19,4 +21,4 @@ These instructions should get you up and running:
     git clone https://github.com/blinkdog/ananas-aus-caracas-node.git
     cd ananas-aus-caracas-node
     npm install
-    node game
+    node game-node

@@ -1,3 +1,39 @@
+// game-node.js
+// @see: http://jsfiddle.net/rotjs/qRnFY/
+//---------------------------------------------------------------------
+
+// define a utility function that we'll need later on
+var bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; };
+
+// acquire some libraries we'll need
+var keypress = require("keypress");
+var ROT = require("rot-js");
+
+// when the program terminates, put the console back the way we found it
+process.on("exit", function() {
+	// move cursor to the bottom left corner
+	process.stdout.write("\x1b[" + (process.stdout.rows + 1) + ";1H");
+	// show the cursor again
+	process.stdout.write("\x1b[?25h");
+});
+// during the game, hide the cursor from display
+process.stdout.write("\x1b[?25l");
+
+// put the keyboard into raw mode, so we can get individual keypress events
+keypress(process.stdin);
+process.stdin.setRawMode(true);
+process.stdin.resume();
+
+// add a handler to list for "quit game" commands
+process.stdin.on("keypress", function(ch, key) {
+	// if the user pressed Ctrl+C or ESC
+	if(ch === "\u0003" || ch === "\u001b" ) {
+		// then quit the game
+		process.exit(0);
+	}
+});
+
+// Ananas aus Caracas
 var Game = {
     display: null,
     map: {},
@@ -7,8 +43,12 @@ var Game = {
     ananas: null,
     
     init: function() {
-        this.display = new ROT.Display({spacing:1.1});
-        document.body.appendChild(this.display.getContainer());
+        // create a display to match our console
+        this.display = new ROT.Display({
+			width: process.stdout.columns,
+			height: process.stdout.rows,
+			layout: "term"
+		});
         
         this._generateMap();
         
@@ -19,9 +59,28 @@ var Game = {
         this.engine = new ROT.Engine(scheduler);
         this.engine.start();
     },
-    
+
+    // display a message for the user
+	showMessage: function(message) {
+		// draw the message in the upper left corner, in yellow
+		this.display.drawText(0, 1, ("%c{#ff0}" + message));
+		// after 1 second, redraw the map, player, and pedro
+		// in order to clear the message from the display
+		// and don't forget to bind "this", so we can still
+		// reference it from the timeout context
+		setTimeout(bind(function() {
+			this.display.clear();
+			this._drawWholeMap();
+			this.player._draw();
+			this.pedro._draw();
+		}, this), 1000);
+	},
+	
     _generateMap: function() {
-        var digger = new ROT.Map.Digger();
+		// generate a map that will fit on our console
+		var width = process.stdout.columns;
+		var height = process.stdout.rows;
+        var digger = new ROT.Map.Digger(width, height);
         var freeCells = [];
         
         var digCallback = function(x, y, value) {
@@ -54,7 +113,7 @@ var Game = {
             var index = Math.floor(ROT.RNG.getUniform() * freeCells.length);
             var key = freeCells.splice(index, 1)[0];
             this.map[key] = "*";
-            if (!i) { this.ananas = key; } /* first box contains an ananas */
+            if (!i) { this.ananas = key; } // first box contains an ananas
         }
     },
     
@@ -69,6 +128,10 @@ var Game = {
 };
 
 var Player = function(x, y) {
+	// bind the handleEvent function to the Player object, so that
+	// when it is called from process.stdin.on("keypress", ...)
+	// it will always treat the Player as the 'this' object
+    this.handleEvent = bind(this.handleEvent, this);
     this._x = x;
     this._y = y;
     this._draw();
@@ -80,31 +143,40 @@ Player.prototype.getY = function() { return this._y; }
 
 Player.prototype.act = function() {
     Game.engine.lock();
-    window.addEventListener("keydown", this);
+	process.stdin.on("keypress", this.handleEvent);
 }
-    
-Player.prototype.handleEvent = function(e) {
-    var code = e.keyCode;
-    if (code == 13 || code == 32) {
+
+Player.prototype.handleEvent = function(ch, key) {
+	// if we didn't get a reasonable key object, bail out
+	if (typeof key === "undefined" || key === null) { return; }
+	// determine the name of the pressed key
+	var name = key.name;
+	// if it didn't have a name, bail out
+	if (typeof name === "undefined" || name === null) { return; }
+	
+	// if the user hit the space bar or the enter key
+    if (name === "space" || name === "return") {
+		// check to see if the box has an ananas
         this._checkBox();
         return;
     }
 
+	// otherwise, let's see where the player wants to move
     var keyMap = {};
-    keyMap[38] = 0;
-    keyMap[33] = 1;
-    keyMap[39] = 2;
-    keyMap[34] = 3;
-    keyMap[40] = 4;
-    keyMap[35] = 5;
-    keyMap[37] = 6;
-    keyMap[36] = 7;
+    keyMap["up"] = 0;
+    keyMap["pageup"] = 1;
+    keyMap["right"] = 2;
+    keyMap["pagedown"] = 3;
+    keyMap["down"] = 4;
+    keyMap["end"] = 5;
+    keyMap["left"] = 6;
+    keyMap["home"] = 7;
 
-    /* one of numpad directions? */
-    if (!(code in keyMap)) { return; }
+    // one of numpad directions?
+    if (!(name in keyMap)) { return; }
 
-    /* is there a free space? */
-    var dir = ROT.DIRS[8][keyMap[code]];
+    // is there a free space?
+    var dir = ROT.DIRS[8][keyMap[name]];
     var newX = this._x + dir[0];
     var newY = this._y + dir[1];
     var newKey = newX + "," + newY;
@@ -114,7 +186,7 @@ Player.prototype.handleEvent = function(e) {
     this._x = newX;
     this._y = newY;
     this._draw();
-    window.removeEventListener("keydown", this);
+	process.stdin.removeListener("keypress", this.handleEvent);
     Game.engine.unlock();
 }
 
@@ -125,13 +197,14 @@ Player.prototype._draw = function() {
 Player.prototype._checkBox = function() {
     var key = this._x + "," + this._y;
     if (Game.map[key] != "*") {
-        alert("There is no box here!");
+        Game.showMessage("There is no box here!");
     } else if (key == Game.ananas) {
-        alert("Hooray! You found an ananas and won this game.");
+        Game.showMessage("Hooray! You found an ananas and won this game.");
         Game.engine.lock();
-        window.removeEventListener("keydown", this);
+		process.stdin.removeListener("keypress", this.handleEvent);
+		setTimeout(function() { process.exit(0); }, 750);
     } else {
-        alert("This box is empty :-(");
+        Game.showMessage("This box is empty :-(");
     }
 }
     
@@ -159,9 +232,11 @@ Pedro.prototype.act = function() {
     astar.compute(this._x, this._y, pathCallback);
 
     path.shift();
-    if (path.length == 1) {
+	// <=, in case the player jumps into Pedro's arms (path.length === 0)
+    if (path.length <= 1) {
         Game.engine.lock();
-        alert("Game over - you were captured by Pedro!");
+        Game.showMessage("Game over - you were captured by Pedro!");
+		setTimeout(function() { process.exit(0); }, 750);
     } else {
         x = path[0][0];
         y = path[0][1];
@@ -176,5 +251,7 @@ Pedro.prototype._draw = function() {
     Game.display.draw(this._x, this._y, "P", "red");
 }    
 
-
 Game.init();
+
+//---------------------------------------------------------------------
+// end of game-node.js

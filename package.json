@@ -1,12 +1,13 @@
 {
     "name": "ananas-aus-caracas",
-    "version": "0.0.5",
+    "version": "0.0.6",
     "description": "rot.js tutorial game Ananas aus Caracas",
     "homepage": "https://github.com/blinkdog/ananas-aus-caracas-node",
     "bugs": "https://github.com/blinkdog/ananas-aus-caracas-node/issues",
     "author": "Patrick Meade <veloxi@ticon.net>",
     "files": [
         "game.js",
+        "game-node.js",
         "package.json",
         "README.md"
     ],
